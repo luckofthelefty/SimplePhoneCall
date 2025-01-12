@@ -29,28 +29,42 @@ public class AnswerCommand implements CommandExecutor {
         }
 
         Player target = (Player) sender;
-        UUID callerId = callManager.getCaller(target.getUniqueId());
+        UUID targetId = target.getUniqueId();
 
+        // 1. Check if target is in ANY call (pending OR accepted)
+        if (!callManager.hasCall(targetId)) {
+            target.sendMessage("You don't have any incoming calls to answer.");
+            return true;
+        }
+
+        // 2. If the call is already accepted, let them know
+        if (callManager.hasActiveCall(targetId)) {
+            target.sendMessage("This call has already been accepted. Use /hangup instead.");
+            return true;
+        }
+
+        // 3. Get the other participant
+        UUID callerId = callManager.getOtherParticipant(targetId);
         if (callerId == null) {
             target.sendMessage("You don't have any incoming calls to answer.");
             return true;
         }
 
         Player caller = target.getServer().getPlayer(callerId);
-
         if (caller == null || !caller.isOnline()) {
             target.sendMessage("The caller is no longer online.");
-            callManager.removeCall(target.getUniqueId());
+            callManager.endCall(targetId, callerId);
             return true;
         }
 
-        // Stop the ringtone
+        // 4. Stop the ringtone for the target
         ringtonePlayer.stopRingtone(target);
 
-        // Generate a random password
-        String password = UUID.randomUUID().toString().substring(0, 8);
+        // 5. Mark the call as accepted for BOTH sides
+        callManager.acceptCall(callerId, targetId);
 
-        // Create a private group
+        // 6. Create a private voice chat group
+        String password = UUID.randomUUID().toString().substring(0, 8);
         Group group = serverApi.groupBuilder()
                 .setName("Private Call: " + caller.getName() + " & " + target.getName())
                 .setPassword(password)
@@ -58,17 +72,15 @@ public class AnswerCommand implements CommandExecutor {
                 .setType(Group.Type.ISOLATED)
                 .build();
 
-        // Add both players to the group
+        // 7. Put both players in that group
         serverApi.getConnectionOf(caller.getUniqueId()).setGroup(group);
         serverApi.getConnectionOf(target.getUniqueId()).setGroup(group);
 
-        // Notify players
+        // 8. Notify them
         caller.sendMessage(target.getName() + " answered the call! You are now in a private group.");
         target.sendMessage("You answered the call with " + caller.getName() + "! You are now in a private group.");
 
-        // Remove the call from the CallManager
-        callManager.removeCall(target.getUniqueId());
-
+        // 9. Do NOT end the call. Let /hangup handle that later.
         return true;
     }
 }
