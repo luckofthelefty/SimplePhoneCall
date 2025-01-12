@@ -1,0 +1,13 @@
+# Eclipse-specific files
+.classpath
+.project
+.settings/
+
+# Maven-specific files
+target/
+*.log
+dependency-reduced-pom.xml
+
+# OS-specific files
+.DS_Store
+Thumbs.db
