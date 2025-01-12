@@ -28,32 +28,29 @@ public class HangupCommand implements CommandExecutor {
         Player player = (Player) sender;
         UUID playerId = player.getUniqueId();
 
-        // Check if this player is in an active call
-        if (!callManager.hasActiveCall(playerId)) {
-            player.sendMessage("You are not in an active call.");
+        // 1. Check if the player is in ANY call (accepted or pending)
+        if (!callManager.hasCall(playerId)) {
+            player.sendMessage("You are not in a call.");
             return true;
         }
 
-        // Find the other participant
+        // 2. Find the other participant
         UUID otherId = callManager.getOtherParticipant(playerId);
         if (otherId == null) {
-            // Should not happen if hasActiveCall(...) is true, but just in case
             player.sendMessage("Could not find the other participant.");
             return true;
         }
 
-        // Attempt to get the other player from the server
+        // 3. Notify the other participant, if online
         Player otherPlayer = player.getServer().getPlayer(otherId);
-
-        // Notify the other participant
         if (otherPlayer != null && otherPlayer.isOnline()) {
             otherPlayer.sendMessage(player.getName() + " has hung up the call.");
         }
 
-        // End the call for both sides
+        // 4. End the call for both sides
         callManager.endCall(playerId, otherId);
 
-        // Remove them from voicechat group if needed
+        // 5. Remove them from voicechat group if needed
         if (serverApi.getConnectionOf(playerId) != null) {
             serverApi.getConnectionOf(playerId).setGroup(null);
         }
@@ -62,7 +59,6 @@ public class HangupCommand implements CommandExecutor {
         }
 
         player.sendMessage("You hung up the call.");
-
         return true;
     }
 }

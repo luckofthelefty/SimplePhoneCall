@@ -9,66 +9,126 @@ import java.util.UUID;
 
 public class CallManager {
 
-    // Instead of mapping only target -> caller, we map both participants to each other.
-    // So if A calls B, we do activeCalls.put(A, B) and activeCalls.put(B, A).
-    private final Map<UUID, UUID> activeCalls = new HashMap<>();
+    /**
+     * Holds information about a call for a single player:
+     *  - who they're in a call with (`otherId`),
+     *  - whether it's accepted (`accepted`).
+     */
+    private static class CallInfo {
+        private final UUID otherId;
+        private boolean accepted;
+
+        public CallInfo(UUID otherId, boolean accepted) {
+            this.otherId = otherId;
+            this.accepted = accepted;
+        }
+
+        public UUID getOtherId() {
+            return otherId;
+        }
+
+        public boolean isAccepted() {
+            return accepted;
+        }
+
+        public void setAccepted(boolean accepted) {
+            this.accepted = accepted;
+        }
+    }
+
+    // We'll map each player's UUID to their CallInfo
+    private final Map<UUID, CallInfo> calls = new HashMap<>();
+
+    // Keep track of scheduled tasks for call timeouts
     private final Map<UUID, Integer> callTimeoutTasks = new HashMap<>();
 
     /**
-     * Sends a call request from caller to target with a 20-second timeout.
+     * Send a call request from `caller` to `target`. This is initially "not accepted."
      */
     public void sendCallRequest(Player caller, Player target, Runnable timeoutCallback) {
         UUID callerId = caller.getUniqueId();
         UUID targetId = target.getUniqueId();
 
-        // Put both directions in the map to track the pending call
-        activeCalls.put(callerId, targetId);
-        activeCalls.put(targetId, callerId);
+        // Mark both as having a pending call (accepted=false)
+        calls.put(callerId, new CallInfo(targetId, false));
+        calls.put(targetId, new CallInfo(callerId, false));
 
-        // Schedule timeout for 20 seconds to remove the pending call if not answered
+        // Schedule a 20-second timeout
         int taskId = Bukkit.getScheduler().scheduleSyncDelayedTask(
                 Bukkit.getPluginManager().getPlugin("SimplePhoneCall"),
                 () -> {
-                    // If still in the map, remove it and run the callback
-                    if (activeCalls.containsKey(targetId) && activeCalls.get(targetId).equals(callerId)) {
+                    // Check if the target still has a pending call from the caller
+                    CallInfo info = calls.get(targetId);
+                    if (info != null && info.getOtherId().equals(callerId) && !info.isAccepted()) {
+                        // The call was never accepted within 20s, end it
                         endCall(callerId, targetId);
                         timeoutCallback.run();
                     }
                 },
-                20 * 20L // 20 seconds in ticks
+                20L * 20 // 20 seconds in ticks
         );
 
         callTimeoutTasks.put(targetId, taskId);
     }
 
     /**
-     * Gets the other participant in a call, or null if none.
+     * Accept the call for both sides (meaning it's now "active").
      */
-    public UUID getOtherParticipant(UUID playerId) {
-        return activeCalls.get(playerId);
-    }
+    public void acceptCall(UUID callerId, UUID targetId) {
+        // If either side has an entry, mark it accepted
+        if (calls.containsKey(callerId)) {
+            calls.get(callerId).setAccepted(true);
+        }
+        if (calls.containsKey(targetId)) {
+            calls.get(targetId).setAccepted(true);
+        }
 
-    /**
-     * Check if the player is currently in a call (pending or active).
-     */
-    public boolean hasActiveCall(UUID playerId) {
-        return activeCalls.containsKey(playerId);
-    }
-
-    /**
-     * Ends the call for both players (removes entries from the map).
-     */
-    public void endCall(UUID playerA, UUID playerB) {
-        // Remove the mapping in both directions
-        activeCalls.remove(playerA);
-        activeCalls.remove(playerB);
-
-        // Cancel any timeout tasks if they exist
-        Integer taskA = callTimeoutTasks.remove(playerA);
+        // Cancel any timeout tasks if they're still running
+        Integer taskA = callTimeoutTasks.remove(callerId);
         if (taskA != null) {
             Bukkit.getScheduler().cancelTask(taskA);
         }
-        Integer taskB = callTimeoutTasks.remove(playerB);
+        Integer taskB = callTimeoutTasks.remove(targetId);
+        if (taskB != null) {
+            Bukkit.getScheduler().cancelTask(taskB);
+        }
+    }
+
+    /**
+     * True if this player has *any* call entry (pending or accepted).
+     */
+    public boolean hasCall(UUID playerId) {
+        return calls.containsKey(playerId);
+    }
+
+    /**
+     * True if this player has a call *and* it has been accepted.
+     */
+    public boolean hasActiveCall(UUID playerId) {
+        CallInfo info = calls.get(playerId);
+        return (info != null && info.isAccepted());
+    }
+
+    /**
+     * Returns the UUID of the other participant in the player's call (or null if none).
+     */
+    public UUID getOtherParticipant(UUID playerId) {
+        CallInfo info = calls.get(playerId);
+        return (info == null) ? null : info.getOtherId();
+    }
+
+    /**
+     * End the call for both players (removes from map and cancels timeouts).
+     */
+    public void endCall(UUID a, UUID b) {
+        calls.remove(a);
+        calls.remove(b);
+
+        Integer taskA = callTimeoutTasks.remove(a);
+        if (taskA != null) {
+            Bukkit.getScheduler().cancelTask(taskA);
+        }
+        Integer taskB = callTimeoutTasks.remove(b);
         if (taskB != null) {
             Bukkit.getScheduler().cancelTask(taskB);
         }
