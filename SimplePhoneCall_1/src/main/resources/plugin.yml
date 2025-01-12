@@ -1,0 +1,19 @@
+name: SimplePhoneCall
+version: 1.0
+main: com.luckofthelefty.simplephonecall.SimplePhoneCallPlugin
+api-version: 1.21
+depend: [voicechat]
+
+commands:
+  call:
+    description: Initiate a call to another player.
+    usage: /call <playername>
+  answer:
+    description: Answer an incoming call.
+    usage: /answer
+  decline:
+    description: Decline an incoming call.
+    usage: /decline
+  hangup:
+    description: Hang up an ongoing call.
+    usage: /hangup
