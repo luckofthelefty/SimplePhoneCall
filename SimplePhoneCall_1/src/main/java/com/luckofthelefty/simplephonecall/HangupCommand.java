@@ -26,39 +26,39 @@ public class HangupCommand implements CommandExecutor {
         }
 
         Player player = (Player) sender;
-        UUID callerId = callManager.getCaller(player.getUniqueId());
-        UUID targetId = callManager.getTarget(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
 
-        // Handle cases where the player is both the caller and the target (calling themselves)
-        if (callerId == null && targetId == null && callManager.hasActiveCall(player.getUniqueId())) {
-            callerId = player.getUniqueId();
-        }
-
-        if (callerId == null && targetId == null) {
+        // Check if this player is in an active call
+        if (!callManager.hasActiveCall(playerId)) {
             player.sendMessage("You are not in an active call.");
             return true;
         }
 
-        UUID otherPlayerId = (callerId != null && !callerId.equals(player.getUniqueId())) ? callerId : targetId;
-        Player otherPlayer = (otherPlayerId != null) ? player.getServer().getPlayer(otherPlayerId) : null;
-
-        if (otherPlayer != null && otherPlayer.isOnline() && !otherPlayer.equals(player)) {
-            otherPlayer.sendMessage(player.getName() + " hung up the call.");
+        // Find the other participant
+        UUID otherId = callManager.getOtherParticipant(playerId);
+        if (otherId == null) {
+            // Should not happen if hasActiveCall(...) is true, but just in case
+            player.sendMessage("Could not find the other participant.");
+            return true;
         }
 
-        // Remove the call and leave the voice chat group
-        callManager.removeCall(player.getUniqueId());
-        if (otherPlayerId != null) {
-            callManager.removeCall(otherPlayerId);
+        // Attempt to get the other player from the server
+        Player otherPlayer = player.getServer().getPlayer(otherId);
+
+        // Notify the other participant
+        if (otherPlayer != null && otherPlayer.isOnline()) {
+            otherPlayer.sendMessage(player.getName() + " has hung up the call.");
         }
 
-        // Clear the group from both players
-        if (serverApi.getConnectionOf(player.getUniqueId()) != null) {
-            serverApi.getConnectionOf(player.getUniqueId()).setGroup(null);
-        }
+        // End the call for both sides
+        callManager.endCall(playerId, otherId);
 
-        if (otherPlayerId != null && serverApi.getConnectionOf(otherPlayerId) != null) {
-            serverApi.getConnectionOf(otherPlayerId).setGroup(null);
+        // Remove them from voicechat group if needed
+        if (serverApi.getConnectionOf(playerId) != null) {
+            serverApi.getConnectionOf(playerId).setGroup(null);
+        }
+        if (serverApi.getConnectionOf(otherId) != null) {
+            serverApi.getConnectionOf(otherId).setGroup(null);
         }
 
         player.sendMessage("You hung up the call.");

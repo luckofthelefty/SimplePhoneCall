@@ -29,25 +29,32 @@ public class AnswerCommand implements CommandExecutor {
         }
 
         Player target = (Player) sender;
-        UUID callerId = callManager.getCaller(target.getUniqueId());
+        UUID targetId = target.getUniqueId();
 
+        // Check if target is actually in a pending/active call
+        if (!callManager.hasActiveCall(targetId)) {
+            target.sendMessage("You don't have any incoming calls to answer.");
+            return true;
+        }
+
+        // Find the other side of the call
+        UUID callerId = callManager.getOtherParticipant(targetId);
         if (callerId == null) {
             target.sendMessage("You don't have any incoming calls to answer.");
             return true;
         }
 
         Player caller = target.getServer().getPlayer(callerId);
-
         if (caller == null || !caller.isOnline()) {
             target.sendMessage("The caller is no longer online.");
-            callManager.removeCall(target.getUniqueId());
+            callManager.endCall(targetId, callerId);
             return true;
         }
 
         // Stop the ringtone
         ringtonePlayer.stopRingtone(target);
 
-        // Generate a random password
+        // Generate a random password for the private voice group
         String password = UUID.randomUUID().toString().substring(0, 8);
 
         // Create a private group
@@ -66,8 +73,10 @@ public class AnswerCommand implements CommandExecutor {
         caller.sendMessage(target.getName() + " answered the call! You are now in a private group.");
         target.sendMessage("You answered the call with " + caller.getName() + "! You are now in a private group.");
 
-        // Remove the call from the CallManager
-        callManager.removeCall(target.getUniqueId());
+        // Remove the call from the CallManager for both participants
+        // (If you want the call to remain tracked for an "/hangup" command, 
+        // you could keep it or transition it to a separate "active calls" map.)
+        callManager.endCall(targetId, callerId);
 
         return true;
     }

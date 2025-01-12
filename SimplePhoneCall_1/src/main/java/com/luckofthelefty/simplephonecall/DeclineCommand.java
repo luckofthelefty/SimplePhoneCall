@@ -24,26 +24,36 @@ public class DeclineCommand implements CommandExecutor {
             return true;
         }
 
-        Player target = (Player) sender;
-        UUID callerId = callManager.getCaller(target.getUniqueId());
+        Player player = (Player) sender;
+        UUID playerId = player.getUniqueId();
 
-        if (callerId == null) {
-            target.sendMessage("You don't have any incoming calls to decline.");
+        // Check if the player is in a call/pending call at all
+        if (!callManager.hasActiveCall(playerId)) {
+            player.sendMessage("You don't have any incoming calls to decline.");
             return true;
         }
 
-        Player caller = target.getServer().getPlayer(callerId);
-
-        if (caller != null && caller.isOnline()) {
-            caller.sendMessage(target.getName() + " declined your call.");
+        // Find the other participant from the map
+        UUID otherId = callManager.getOtherParticipant(playerId);
+        if (otherId == null) {
+            // Shouldn't happen if hasActiveCall(...) was true, but just in case
+            player.sendMessage("You don't have any incoming calls to decline.");
+            return true;
         }
 
-        // Stop the ringtone for the target
-        ringtonePlayer.stopRingtone(target);
+        // Notify the other side
+        Player otherPlayer = player.getServer().getPlayer(otherId);
+        if (otherPlayer != null && otherPlayer.isOnline()) {
+            otherPlayer.sendMessage(player.getName() + " declined your call.");
+        }
 
-        // Remove the call request
-        callManager.removeCall(target.getUniqueId());
-        target.sendMessage("You declined the call.");
+        // Stop the ringtone on the declining player's side
+        ringtonePlayer.stopRingtone(player);
+
+        // End the call for both participants
+        callManager.endCall(playerId, otherId);
+
+        player.sendMessage("You declined the call.");
 
         return true;
     }
