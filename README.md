@@ -7,7 +7,7 @@ SimplePhoneCall is a Minecraft plugin that brings voice call functionality to yo
 ## 🌟 Features
 
 - **Voice Calls**:
--   `/call`: Players can call each other privately in isolated voice groups.
+  - `/call`: Players can call each other privately in isolated voice groups.
 - **Ringtone System**: A unique ringtone plays for the recipient while the call is ringing.
 - **Answer and Decline Commands**:
   - `/answer`: Accept an incoming call and join the private voice group.
