@@ -6,7 +6,8 @@ SimplePhoneCall is a Minecraft plugin that brings voice call functionality to yo
 
 ## 🌟 Features
 
-- **Voice Calls**: Players can call each other privately in isolated voice groups.
+- **Voice Calls**:
+-   `/call`: Players can call each other privately in isolated voice groups.
 - **Ringtone System**: A unique ringtone plays for the recipient while the call is ringing.
 - **Answer and Decline Commands**:
   - `/answer`: Accept an incoming call and join the private voice group.
@@ -31,7 +32,7 @@ SimplePhoneCall is a Minecraft plugin that brings voice call functionality to yo
 ## 🛠 Installation
 
 1. Download the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin.
-2. Download SimplePhoneCall from Modrinth.
+2. Download [SimplePhoneCall](https://modrinth.com/plugin/simplephonecall).
 3. Place both plugins into your server's `plugins` folder.
 4. Restart your server.
 5. Enjoy calling your friends in-game!
